@@ -53,10 +53,10 @@ This project replicates Ollama API endpoints for models that are not yet support
 To start the FastAPI server locally, run the following command:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 11435
+python .\api.py --host=0.0.0.0 --port=11435
 ```
 
-The server will be available at `http://localhost:11435`.
+The server will be available at `http://127.0.0.1:11435`.
 
 ## API Endpoints
 
@@ -116,7 +116,7 @@ Similar to `/api/generate`, supports streaming or non-streaming JSON responses.
 
 ### `/api/models`
 
-Lists all available models.
+Lists all available models endpoint for compatibility.
 
 #### Response:
 
@@ -128,7 +128,7 @@ Lists all available models.
 
 ## Configuration
 
-- **Model and Device:** The model is loaded using the `Qwen/Qwen2-VL-7B-Instruct` transformer, and it automatically selects GPU if available.
+- **Model and Device:** The model is loaded using the `Qwen/Qwen2-VL-7B-Instruct` transformer, and it automatically selects GPU if available. Around 17GB of VRAM is required for the 7B model.
 - **Streaming:** You can enable or disable streaming via the `stream` parameter in the API requests.
 - **Images:** Supports base64-encoded images, file paths, and URLs.
 - **JSON Format:** The `format="json"` option ensures the output is formatted in valid JSON, which is useful for structured data processing.
