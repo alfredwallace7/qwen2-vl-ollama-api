@@ -38,6 +38,7 @@ This project replicates Ollama API endpoints for models that are not yet support
 2. Install dependencies:
 
    ```bash
+   pip install git+https://github.com/huggingface/transformers.git
    pip install -r requirements.txt
    ```
 
