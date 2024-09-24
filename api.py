@@ -17,6 +17,7 @@ import base64
 from datetime import datetime, timezone
 import threading
 import gc
+import argparse
 
 app = FastAPI()
 
@@ -442,4 +443,12 @@ async def list_models():
     return {"models": [model_name]}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=11435)
+    
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", type=str, default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=11435)
+    args = parser.parse_args()
+
+    # Run the server
+    uvicorn.run(app, host=args.host, port=args.port)

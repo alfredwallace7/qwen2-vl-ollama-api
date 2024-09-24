@@ -1,15 +1,15 @@
-# Qwen2-VL API Emulator for Ollama Models not yet supported
+# Qwen2-VL Ollama API Emulator for models not yet supported
 
 This project replicates Ollama API endpoints for models that are not yet supported. It uses the `Qwen2-VL-7B-Instruct` model from Hugging Face and provides endpoints for text generation and chat functionality similar to Ollama's API.
 
 ## Features
 
+- Compatible with Python's **Ollama client library.**
 - **Text generation** via `/api/generate`
 - **Chat conversation** support via `/api/chat`
 - **Image handling** (base64, file paths, or URLs)
-- Streaming or non-streaming responses.
-- Customizable prompts, generation options, and system messages.
-- Compatible with Python's Ollama library.
+- **Streaming** or non-streaming responses.
+- Customizable prompts, generation options, and **system messages**.
 
 ## Requirements
 
