@@ -2,6 +2,14 @@
 
 This project replicates Ollama API endpoints for models that are not yet supported. It uses the `Qwen2-VL-7B-Instruct` model from Hugging Face and provides endpoints for text generation and chat functionality similar to Ollama's API.
 
+## Credits
+
+- **[Qwen2-VL](https://github.com/QwenLM/Qwen2-VL)**  
+  Qwen2-VL is an advanced vision-language model developed by [QwenLM](https://github.com/QwenLM). It supports various vision-language tasks, including image captioning, visual question answering, and multi-modal content generation.
+
+- **[Ollama](https://ollama.com/)**  
+  Ollama provides a powerful framework for running and deploying LLMs, offering flexible APIs for various natural language processing tasks.
+
 ## Features
 
 - Compatible with Python's **Ollama client library.**
@@ -136,3 +144,4 @@ Lists all available models endpoint for compatibility.
 ## License
 
 MIT License
+
