@@ -1,4 +1,4 @@
-# Qwen2-VL API Emulator for Ollama Models
+# Qwen2-VL API Emulator for Ollama Models not yet supported
 
 This project replicates Ollama API endpoints for models that are not yet supported. It uses the `Qwen2-VL-7B-Instruct` model from Hugging Face and provides endpoints for text generation and chat functionality similar to Ollama's API.
 

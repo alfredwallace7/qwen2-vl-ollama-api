@@ -16,8 +16,13 @@ import os
 import base64
 from datetime import datetime, timezone
 import threading
+import gc
 
 app = FastAPI()
+
+# Define pixel constraints for the model
+MIN_PIXELS = 256 * 28 * 28
+MAX_PIXELS = 1280 * 28 * 28
 
 # Load model and processor
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -57,12 +62,76 @@ class GenerateRequest(BaseModel):
     model: str
     prompt: str
     options: Optional[GenerateOptions] = None
-    system_prompt: Optional[str] = None
+    system: Optional[str] = None
     images: Optional[List[str]] = None  # Images can be base64 strings, file paths, or URLs
     stream: Optional[bool] = True  # Add stream parameter
     format: Optional[str] = None
     tools: Optional[List[Dict[str, Any]]] = None
     system: Optional[str] = None
+
+# Function to process and resize images
+def process_images(image_data_list):
+    # The max input image size for the Qwen2-VL-7B-Instruct model can be adjusted using pixel count limits.
+    # The default range of visual tokens per image is 4-16,384, 
+    # You can set the number of pixels between 
+    # min_pixels = 256 * 28 * 28
+    # max_pixels = 1280 * 28 * 28
+
+    processed_images = []
+    
+    for image_data in image_data_list:
+        image = None
+        
+        try:
+            # Try to decode base64-encoded image data
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        except (base64.binascii.Error, IOError):
+            pass  # Not base64 or invalid image, try next method
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error processing image: {e}")
+
+        if image is None:
+            # Try to load from file path
+            if os.path.exists(image_data):
+                try:
+                    image = Image.open(image_data).convert("RGB")
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Error loading image from path: {e}")
+            else:
+                # Try to load from URL
+                try:
+                    response = requests.get(image_data.strip())
+                    response.raise_for_status()
+                    image = Image.open(BytesIO(response.content)).convert("RGB")
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Error loading image from URL: {e}")
+        
+        if image:
+            # Get the current image size and calculate pixel count
+            width, height = image.size
+            current_pixel_count = width * height
+
+            # Only resize if the image exceeds max pixel count or is too small
+            if current_pixel_count > MAX_PIXELS or current_pixel_count < MIN_PIXELS:
+                # Calculate the resizing factor while maintaining aspect ratio
+                if current_pixel_count > MAX_PIXELS:
+                    # Resize to fit within max_pixels
+                    scale_factor = (MAX_PIXELS / current_pixel_count) ** 0.5
+                else:
+                    # Resize up to fit within min_pixels (if too small)
+                    scale_factor = (MIN_PIXELS / current_pixel_count) ** 0.5
+
+                # Calculate the new dimensions while keeping aspect ratio
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                
+                # Resize the image maintaining the aspect ratio
+                image = image.resize((new_width, new_height), Image.LANCZOS)
+
+            processed_images.append(image)
+        
+    return processed_images
 
 # Implement the /api/generate endpoint
 @app.post("/api/generate")
@@ -76,59 +145,14 @@ async def generate(request: Request):
 
     # Prepare the prompt and system prompt
     prompt = generate_request.prompt
-    system_prompt = generate_request.system_prompt or None
+    system_prompt = generate_request.system or None
     message_content = []
 
-    if not generate_request.stream:
-        # Implement 'format' argument logic
-        if generate_request.format == "json":
-            system_prompt = f"You are a JSON-formatting assistant. Only output valid JSON and nothing else."
-
-        # Implement 'tools' argument logic
-        if generate_request.tools:
-            tools_json = json.dumps(generate_request.tools)
-            if system_prompt:
-                system_prompt += f"\nTools: {tools_json}"
-            else:
-                system_prompt = f"Tools: {tools_json}"
-
-        # Implement 'system' argument logic
-        if generate_request.system:
-            if system_prompt:
-                system_prompt += f"\nSystem: {generate_request.system}"
-            else:
-                system_prompt = f"System: {generate_request.system}"
-
     # Handle images
+    image_inputs = []
     if generate_request.images:
-        for image_data in generate_request.images:
-            image = None
-            # Try to decode base64-encoded image data
-            try:
-                image_bytes = base64.b64decode(image_data)
-                image = Image.open(BytesIO(image_bytes)).convert("RGB")
-                message_content.append({"type": "image", "image": image})
-                continue  # Successfully loaded image, proceed to next
-            except (base64.binascii.Error, IOError):
-                pass  # Not base64 or invalid image, try next method
-
-            # Try to load from file path
-            if os.path.exists(image_data):
-                try:
-                    image = Image.open(image_data).convert("RGB")
-                    message_content.append({"type": "image", "image": image})
-                    continue
-                except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Error loading image from path: {e}")
-
-            # Try to load from URL
-            try:
-                response = requests.get(image_data.strip())
-                response.raise_for_status()
-                image = Image.open(BytesIO(response.content)).convert("RGB")
-                message_content.append({"type": "image", "image": image})
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Error loading image: {e}")
+        image_inputs = process_images(generate_request.images)
+        message_content.extend([{"type": "image", "image": img} for img in image_inputs])
 
     # Add text content
     if prompt:
@@ -137,7 +161,7 @@ async def generate(request: Request):
     # Prepare messages with optional system prompt
     messages = []
     if system_prompt:
-        messages.append({
+        messages.insert(0, {
             "role": "system",
             "content": [{"type": "text", "text": system_prompt}]
         })
@@ -164,8 +188,6 @@ async def generate(request: Request):
         'temperature': generate_request.options.temperature if generate_request.options and generate_request.options.temperature else 1.0,
         'top_p': generate_request.options.top_p if generate_request.options and generate_request.options.top_p else 1.0,
     }
-    if generate_request.options and generate_request.options.stop:
-        generation_kwargs['eos_token_id'] = processor.tokenizer.convert_tokens_to_ids(generate_request.options.stop)
 
     # Check if streaming is requested
     if generate_request.stream:
@@ -210,12 +232,13 @@ async def generate(request: Request):
                 "done": True,
                 "done_reason": "stop",
                 "total_duration": int((end_time - start_time) * 1e9),  # Nanoseconds
-                "load_duration": 0,  # Fill this based on actual load time if tracked
-                "prompt_eval_duration": 0,  # Fill if needed
                 "eval_count": len(partial_response),  # Number of characters generated
-                "eval_duration": int((end_time - start_time) * 1e9)  # Placeholder for eval duration
             }
             yield json.dumps(response_data) + "\n"
+
+            # Free up memory
+            torch.cuda.empty_cache()
+            gc.collect()
 
         return StreamingResponse(response_generator(), media_type="application/json")
 
@@ -237,9 +260,12 @@ async def generate(request: Request):
             "response": output_text,
             "done": True
         }
+
+        # Free up memory
+        torch.cuda.empty_cache()
+        gc.collect()
         return JSONResponse(content=response_data)
 
-# Implement the /api/chat endpoint
 @app.post("/api/chat")
 async def chat(request: Request):
     req_data = await request.json()
@@ -251,6 +277,7 @@ async def chat(request: Request):
 
     # Prepare the messages
     messages = []
+    image_inputs = []
 
     for message in chat_request.messages:
         content = message.content
@@ -258,34 +285,8 @@ async def chat(request: Request):
 
         # Handle images from the 'images' field
         if message.images:
-            for image_data in message.images:
-                image = None
-                # Try to decode base64-encoded image data
-                try:
-                    image_bytes = base64.b64decode(image_data)
-                    image = Image.open(BytesIO(image_bytes)).convert("RGB")
-                    message_content.append({"type": "image", "image": image})
-                    continue  # Successfully loaded image, proceed to next
-                except (base64.binascii.Error, IOError):
-                    pass  # Not base64 or invalid image, try next method
-
-                # Try to load from file path
-                if os.path.exists(image_data):
-                    try:
-                        image = Image.open(image_data).convert("RGB")
-                        message_content.append({"type": "image", "image": image})
-                        continue
-                    except Exception as e:
-                        raise HTTPException(status_code=400, detail=f"Error loading image from path: {e}")
-
-                # Try to load from URL
-                try:
-                    response = requests.get(image_data.strip())
-                    response.raise_for_status()
-                    image = Image.open(BytesIO(response.content)).convert("RGB")
-                    message_content.append({"type": "image", "image": image})
-                except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Error loading image: {e}")
+            image_inputs = process_images(message.images)
+            message_content.extend([{"type": "image", "image": img} for img in image_inputs])
 
         # Add text content
         if content:
@@ -399,12 +400,13 @@ async def chat(request: Request):
                 "done": True,
                 "done_reason": "stop",
                 "total_duration": int((end_time - start_time) * 1e9),  # Nanoseconds
-                "load_duration": 0,  # Fill this based on actual load time if tracked
-                "prompt_eval_duration": 0,  # Fill if needed
                 "eval_count": len(partial_response),  # Number of characters generated
-                "eval_duration": int((end_time - start_time) * 1e9)  # Placeholder for eval duration
             }
             yield json.dumps(response_data) + "\n"
+
+            # Free up memory
+            torch.cuda.empty_cache()
+            gc.collect()
 
         return StreamingResponse(response_generator(), media_type="application/json")
 
@@ -426,6 +428,11 @@ async def chat(request: Request):
             "response": output_text,
             "done": True
         }
+
+        # Free up memory
+        torch.cuda.empty_cache()
+        gc.collect()
+
         return JSONResponse(content=response_data)
 
 # Implement the /api/models endpoint
