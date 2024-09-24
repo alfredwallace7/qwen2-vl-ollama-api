@@ -4,4 +4,6 @@ pydantic
 transformers
 torch
 requests
-Pillow
+pillow
+qwen_vl_utils
+
