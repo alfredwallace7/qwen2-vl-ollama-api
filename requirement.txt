@@ -1,13 +1,12 @@
 uvicorn
 fastapi
 pydantic
-transformers
-torch
 requests
 pillow
 qwen_vl_utils
-torchvision
 accelerate
 packaging
 ninja
 flash-attn
+ollama
+rich

@@ -1,6 +1,6 @@
 # Qwen2-VL Ollama API Emulator for models not yet supported
 
-This project partialy replicates Ollama API endpoints for `Qwen2-VL-7B-Instruct` and can easily be adapted to other models that are not yet supported by official Ollama. It uses the `Qwen2-VL-7B-Instruct` model from Hugging Face and provides endpoints for text generation and chat functionality similar to Ollama's API.
+This project partialy replicates Ollama API endpoints for `Qwen2-VL-7B-Instruct` and can easily be adapted to other models that are not yet supported by official Ollama. It uses the `Qwen2-VL-7B-Instruct` model from Hugging Face and provides endpoints for text generation and chat functionality similar to Ollama's API to be used with the official Ollama python client library.
 
 ## Credits
 
@@ -12,6 +12,9 @@ This project partialy replicates Ollama API endpoints for `Qwen2-VL-7B-Instruct`
 
 - **[Ollama](https://ollama.com/)**  
   Ollama provides a powerful framework for running and deploying LLMs, offering flexible APIs for various natural language processing tasks.
+
+- **[OpenAI ChatGPT](https://chatgpt.com/)**  
+  OpenAI ChatGPT is a state-of-the-art language model that can be used for various natural language processing tasks and has been used as a code assistant.
 
 ## Features
 
@@ -31,20 +34,26 @@ This project partialy replicates Ollama API endpoints for `Qwen2-VL-7B-Instruct`
 
 ## Installation
 
-1. Clone this repository:
+1. ##### Clone this repository:
 
    ```bash
    git clone https://github.com/yourusername/qwen2vl-ollama-api.git
    cd qwen2vl-ollama-api
+   python -m venv venv
+   source venv/bin/activate
+   python -m pip install -U pip
    ```
 
-2. Install dependencies:
+2. ##### Install dependencies:
+
+   **PyTorch** is required for GPU support.
+   Please refer to [Installing PyTorch](https://pytorch.org/get-started/locally/) for more details.
 
    ```bash
    pip install git+https://github.com/huggingface/transformers.git
    pip install -r requirements.txt
    ```
-
+   
    Requirements include:
    - FastAPI
    - Uvicorn
@@ -54,7 +63,7 @@ This project partialy replicates Ollama API endpoints for `Qwen2-VL-7B-Instruct`
    - Requests
    - Pydantic
 
-3. Ensure you have the `Qwen/Qwen2-VL-7B-Instruct` model downloaded:
+3. ##### Ensure you have the `Qwen/Qwen2-VL-7B-Instruct` model downloaded:
 
    ```bash
    transformers-cli download Qwen/Qwen2-VL-7B-Instruct
