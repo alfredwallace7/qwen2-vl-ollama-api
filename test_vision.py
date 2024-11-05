@@ -9,7 +9,7 @@ memory = []
 previous_image = None
 image_path = None
 
-print("Enter image path help for commands or /exit to quit")
+print("Enter image path or /help for commands or /exit to quit")
 
 while True:
 
