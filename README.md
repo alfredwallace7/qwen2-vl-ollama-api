@@ -27,6 +27,7 @@ This project partialy replicates Ollama API endpoints for `Qwen2-VL-7B-Instruct`
 
 ## Requirements
 
+- Linux or WSL for flash attention 2
 - Python 3.8+
 - PyTorch with CUDA (optional for GPU acceleration)
 - [Hugging Face Transformers](https://github.com/huggingface/transformers)
